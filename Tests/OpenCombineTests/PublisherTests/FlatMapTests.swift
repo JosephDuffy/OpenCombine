@@ -75,7 +75,7 @@ final class FlatMapTests: XCTestCase {
                 XCTAssertNil(upstream.erasedSubscriber)
             }
         )
-        upstream.willSubscribe = { _ in
+        upstream.willSubscribe = { _, _ in
             upstreamReceivedSubscriber = true
             XCTAssertEqual(tracking.history, [.subscription("FlatMap")])
         }
@@ -115,7 +115,7 @@ final class FlatMapTests: XCTestCase {
     //  1. FlatMap.Inner.receive(_ input:)
     //    2. Publisher.subscribe
     //      ...
-    //      3. FlatMap.Inner.ChildSubscriber.recive(subscription:)
+    //      3. FlatMap.Inner.ChildSubscriber.receive(subscription:)
     //        4. subscription.request()
     //          5. Just.Inner.request()
     //            6. FlatMap.Inner.child(_:receivedValue)
@@ -139,7 +139,7 @@ final class FlatMapTests: XCTestCase {
         flatMap.subscribe(downstreamSubscriber)
         XCTAssertEqual(upstreamPublisher.send(666), .none)
 
-        // Simply making it here shows that there's no dealock
+        // Simply making it here shows that there's no deadlock
     }
 
     func testCancelCancels() throws {
@@ -589,7 +589,7 @@ final class FlatMapTests: XCTestCase {
             createSut: { $0.flatMap(maxPublishers: .max(1)) { $0 } }
         )
 
-        child.willSubscribe = { subscriber in
+        child.willSubscribe = { subscriber, _ in
             helper.publisher.send(completion: .finished)
         }
 
@@ -641,6 +641,31 @@ final class FlatMapTests: XCTestCase {
 
         XCTAssertEqual(childSubscription1.history, [.requested(.unlimited)])
         XCTAssertEqual(childSubscription2.history, [.requested(.unlimited)])
+    }
+
+    func testCrashesWhenUpstreamFailsDuringChildCancellation() {
+        let helper = OperatorTestHelper(
+            publisherType: CustomPublisherBase<CustomPublisher, TestingError>.self,
+            initialDemand: .unlimited,
+            receiveValueDemand: .none,
+            createSut: { $0.flatMap { $0 } }
+        )
+
+        let childSubscription = CustomSubscription()
+        let child = CustomPublisher(subscription: childSubscription)
+
+        var counter = 0
+        childSubscription.onCancel = {
+            if counter >= 5 { return }
+            counter += 1
+            helper.publisher.send(completion: .failure(.oops))
+        }
+
+        XCTAssertEqual(helper.publisher.send(child), .none)
+
+        assertCrashes {
+            helper.publisher.send(completion: .failure(.oops))
+        }
     }
 
     func testDoesNotCompleteWithBufferedValues() {
@@ -965,9 +990,9 @@ final class FlatMapTests: XCTestCase {
                                                    .requested(.max(1))])
     }
 
-    func testSendsSubcriptionDownstreamBeforeDemandUpstream() {
+    func testSendsSubscriptionDownstreamBeforeDemandUpstream() {
         let sentDemandRequestUpstream = "Sent demand request upstream"
-        let sentSubscriptionDownstream = "Sent subcription downstream"
+        let sentSubscriptionDownstream = "Sent subscription downstream"
         var receiveOrder: [String] = []
 
         let upstreamSubscription = CustomSubscription(onRequest: { _ in
@@ -986,7 +1011,7 @@ final class FlatMapTests: XCTestCase {
 
     func testFlatMapReceiveSubscriptionTwice() throws {
         let helper = OperatorTestHelper(
-            publisherType: CustomPublisher.self,
+            publisherType: CustomPublisherBase<Int, Never>.self,
             initialDemand: nil,
             receiveValueDemand: .none,
             createSut: { $0.flatMap(ResultPublisher.init) }
@@ -1041,6 +1066,36 @@ final class FlatMapTests: XCTestCase {
             expected: .history([.subscription("FlatMap"), .completion(.finished)]),
             { $0.flatMap { _ in Just(0) } }
         )
+    }
+
+    @available(macOS 11.0, iOS 14.0, *)
+    func testOverloadWhenUpstreamNeverFailsButChildrenCanFail() {
+        let child = CustomPublisher(subscription: nil)
+        let helper = OperatorTestHelper(
+            publisherType: CustomPublisherBase<Int, Never>.self,
+            initialDemand: .max(1),
+            receiveValueDemand: .max(100),
+            createSut: { $0.flatMap { _ in child } }
+        )
+
+        XCTAssertEqual(helper.sut.upstream.upstream, helper.publisher)
+        XCTAssertEqual(helper.sut.transform(0), child)
+    }
+
+    @available(macOS 11.0, iOS 14.0, *)
+    func testOverloadWhenUpstreamCanFailButChildrenNeverFail() {
+        let child = CustomPublisherBase<Int, Never>(subscription: nil)
+
+        let helper = OperatorTestHelper(
+            publisherType: CustomPublisherBase<Int,
+                                               TestingError>.self,
+            initialDemand: .max(1),
+            receiveValueDemand: .max(100),
+            createSut: { $0.flatMap { _ in child } }
+        )
+
+        XCTAssertEqual(helper.sut.upstream, helper.publisher)
+        XCTAssertEqual(helper.sut.transform(0).upstream, child)
     }
 
     func testFlatMapReflection() throws {

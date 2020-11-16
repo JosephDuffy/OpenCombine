@@ -174,11 +174,11 @@ final class DropUntilOutputTests: XCTestCase {
             }
         )
 
-        otherPublisher.willSubscribe = { _ in
+        otherPublisher.willSubscribe = { _, _ in
             XCTAssertNil(publisher.subscriber)
         }
 
-        publisher.willSubscribe = { _ in
+        publisher.willSubscribe = { _, _ in
             XCTAssertNotNil(otherPublisher.subscriber)
         }
 
@@ -319,7 +319,7 @@ final class DropUntilOutputTests: XCTestCase {
 
     func testDropUntilOutputCancelBeforeSubscription() {
         testCancelBeforeSubscription(inputType: Int.self,
-                                     shouldCrash: false,
+                                     expected: .history([.cancelled]),
                                      { $0.drop(untilOutputFrom: Empty<Int, Never>()) })
     }
 

@@ -5,6 +5,8 @@
 //  Created by Sergej Jaskiewicz on 03.12.2019.
 //
 
+#if !WASI
+
 import XCTest
 
 #if OPENCOMBINE_COMPATIBILITY_TEST
@@ -164,11 +166,11 @@ final class BreakpointTests: XCTestCase {
         try testReflection(parentInput: Int.self,
                            parentFailure: Error.self,
                            description: "Breakpoint",
-                           customMirror: expectedChildren(
-                               ("upstream", .contains("CustomConnectablePublisherBase"))
-                           ),
+                           customMirror: childrenIsEmpty,
                            playgroundDescription: "Breakpoint",
                            subscriberIsAlsoSubscription: false,
                            { $0.breakpointOnError() })
     }
 }
+
+#endif // !WASI

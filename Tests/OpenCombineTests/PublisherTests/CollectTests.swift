@@ -29,7 +29,7 @@ final class CollectTests: XCTestCase {
 
     func testtestUpstreamFinishesImmediately() {
         ReduceTests.testUpstreamFinishesImmediately(expectedSubscription: "Collect",
-                                                    expectedResult: [],
+                                                    expectedResult: [Int](),
                                                     { $0.collect() })
     }
 
@@ -70,7 +70,7 @@ final class CollectTests: XCTestCase {
 
     func testCollectCancelBeforeSubscription() {
         testCancelBeforeSubscription(inputType: Int.self,
-                                     shouldCrash: false,
+                                     expected: .history([.requested(.unlimited)]),
                                      { $0.collect() })
     }
 

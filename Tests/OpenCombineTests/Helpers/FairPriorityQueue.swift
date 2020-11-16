@@ -5,7 +5,7 @@
 //  Created by Sergej Jaskiewicz on 02.12.2019.
 //
 
-/// A priproty queue based on binary min-heap.
+/// A priority queue based on binary min-heap.
 /// If two elements with the same priority are added, the element that was added
 /// earlier has will have "better" priority (i. e. it will be also extracted earlier).
 struct FairPriorityQueue<Priority: Comparable, Element> {
@@ -26,8 +26,8 @@ struct FairPriorityQueue<Priority: Comparable, Element> {
         }
     }
 
-    func min() -> Element? {
-        return storage.first?.1
+    func min() -> (Priority, Element)? {
+        return storage.first.map { ($0.0.0, $0.1) }
     }
 
     @discardableResult

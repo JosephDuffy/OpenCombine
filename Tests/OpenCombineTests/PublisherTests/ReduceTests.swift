@@ -71,7 +71,7 @@ final class ReduceTests: XCTestCase {
 
     func testReduceCancelBeforeSubscription() {
         testCancelBeforeSubscription(inputType: Int.self,
-                                     shouldCrash: false,
+                                     expected: .history([.requested(.unlimited)]),
                                      { $0.reduce(0, shouldNotBeCalled()) })
     }
 
@@ -98,7 +98,7 @@ final class ReduceTests: XCTestCase {
                                                    { $0.tryReduce(1, *) })
     }
 
-    func testTryReduceFailureBecausOfThrow() throws {
+    func testTryReduceFailureBecauseOfThrow() throws {
 
         func reducer(_ accumulator: Int, _ newValue: Int) throws -> Int {
             if newValue == 5 {
@@ -165,7 +165,7 @@ final class ReduceTests: XCTestCase {
 
     func testTryReduceCancelBeforeSubscription() {
         testCancelBeforeSubscription(inputType: Int.self,
-                                     shouldCrash: false,
+                                     expected: .history([.requested(.unlimited)]),
                                      { $0.tryReduce(0, shouldNotBeCalled()) })
     }
 

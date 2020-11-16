@@ -5,6 +5,8 @@
 //  Created by Sergej Jaskiewicz on 26.08.2019.
 //
 
+#if !WASI
+
 import Dispatch
 import XCTest
 
@@ -254,7 +256,7 @@ final class DispatchQueueSchedulerTests: XCTestCase {
         XCTAssertEqual((2 as Stride).magnitude, 2_000_000_000)
 
         XCTAssertNil(Stride(exactly: UInt64.max))
-        XCTAssertEqual(Stride(exactly: 871 as UInt64)?.magnitude, 871)
+        XCTAssertEqual(Stride(exactly: 2 as UInt64)?.magnitude, 2_000_000_000)
     }
 
     func testStrideFromTooMuchSecondsCrashes() {
@@ -286,12 +288,12 @@ final class DispatchQueueSchedulerTests: XCTestCase {
     func testStrideMultiplication() {
         XCTAssertEqual((Stride.nanoseconds(0) * .nanoseconds(61346)).magnitude, 0)
         XCTAssertEqual((Stride.nanoseconds(61346) * .nanoseconds(0)).magnitude, 0)
-        XCTAssertEqual((Stride.nanoseconds(18) * .nanoseconds(1)).magnitude, 18)
-        XCTAssertEqual((Stride.nanoseconds(18) * .microseconds(1)).magnitude, 18000)
-        XCTAssertEqual((Stride.nanoseconds(1) * .nanoseconds(18)).magnitude, 18)
-        XCTAssertEqual((Stride.microseconds(1) * .nanoseconds(18)).magnitude, 18000)
-        XCTAssertEqual((Stride.nanoseconds(15) * .nanoseconds(2)).magnitude, 30)
-        XCTAssertEqual((Stride.microseconds(-3) * .nanoseconds(10)).magnitude, -30000)
+        XCTAssertEqual((Stride.nanoseconds(18) * .nanoseconds(1)).magnitude, 0)
+        XCTAssertEqual((Stride.nanoseconds(18) * .microseconds(1)).magnitude, 0)
+        XCTAssertEqual((Stride.nanoseconds(1) * .nanoseconds(18)).magnitude, 0)
+        XCTAssertEqual((Stride.microseconds(1) * .nanoseconds(18)).magnitude, 0)
+        XCTAssertEqual((Stride.nanoseconds(15) * .nanoseconds(2)).magnitude, 0)
+        XCTAssertEqual((Stride.microseconds(-3) * .nanoseconds(10)).magnitude, 0)
 
         do {
             var stride = Stride.nanoseconds(0)
@@ -308,37 +310,37 @@ final class DispatchQueueSchedulerTests: XCTestCase {
         do {
             var stride = Stride.nanoseconds(18)
             stride *= .nanoseconds(1)
-            XCTAssertEqual(stride.magnitude, 18)
+            XCTAssertEqual(stride.magnitude, 0)
         }
 
         do {
             var stride = Stride.nanoseconds(18)
             stride *= .microseconds(1)
-            XCTAssertEqual(stride.magnitude, 18000)
+            XCTAssertEqual(stride.magnitude, 0)
         }
 
         do {
             var stride = Stride.nanoseconds(1)
             stride *= .nanoseconds(18)
-            XCTAssertEqual(stride.magnitude, 18)
+            XCTAssertEqual(stride.magnitude, 0)
         }
 
         do {
             var stride = Stride.microseconds(1)
             stride *= .nanoseconds(18)
-            XCTAssertEqual(stride.magnitude, 18000)
+            XCTAssertEqual(stride.magnitude, 0)
         }
 
         do {
             var stride = Stride.nanoseconds(15)
             stride *= .nanoseconds(2)
-            XCTAssertEqual(stride.magnitude, 30)
+            XCTAssertEqual(stride.magnitude, 0)
         }
 
         do {
             var stride = Stride.microseconds(-3)
             stride *= .nanoseconds(10)
-            XCTAssertEqual(stride.magnitude, -30000)
+            XCTAssertEqual(stride.magnitude, 0)
         }
     }
 
@@ -496,7 +498,7 @@ final class DispatchQueueSchedulerTests: XCTestCase {
 
         backgroundScheduler
             .schedule(options: .init(qos: .userInteractive, group: group)) {
-                didExecuteBackgroundAction.do { $0 = true }
+                didExecuteBackgroundAction.set(true)
             }
 
         XCTAssertFalse(didExecuteMainAction, "action should be executed asynchronously")
@@ -550,6 +552,8 @@ final class DispatchQueueSchedulerTests: XCTestCase {
         XCTAssertFalse(didExecuteAction, "action should be executed asynchronously")
 
         wait(for: [main], timeout: 3/*seconds*/)
+
+        token.cancel()
     }
 }
 
@@ -568,7 +572,7 @@ private typealias Scheduler = DispatchQueue.OCombine
 private let mainScheduler = DispatchQueue.main.ocombine
 private let backgroundScheduler = DispatchQueue.global(qos: .background).ocombine
 
-#endif
+#endif // OPENCOMBINE_COMPATIBILITY_TEST || !canImport(Combine)
 
 @available(macOS 10.15, iOS 13.0, *)
 private typealias Stride = Scheduler.SchedulerTimeType.Stride
@@ -576,3 +580,5 @@ private typealias Stride = Scheduler.SchedulerTimeType.Stride
 private struct KeyedWrapper<Value: Codable & Equatable>: Codable, Equatable {
     let value: Value
 }
+
+#endif // !WASI

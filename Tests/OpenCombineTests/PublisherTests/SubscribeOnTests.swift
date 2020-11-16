@@ -26,7 +26,7 @@ final class SubscribeOnTests: XCTestCase {
             receiveValue: { _ in .max(12) }
         )
 
-        publisher.didSubscribe = { _ in
+        publisher.didSubscribe = { _, _ in
             XCTAssertEqual(tracking.history,
                            [.subscription("SubscribeOn")],
                            "Subscription object should be sent synchronously")
@@ -232,7 +232,7 @@ final class SubscribeOnTests: XCTestCase {
         try XCTUnwrap(helper.downstreamSubscription).cancel()
     }
 
-    func testWeakCaptureWhenSchedulingRequest() throws {
+    func testStrongCaptureWhenSchedulingRequest() throws {
         let scheduler = VirtualTimeScheduler()
         var subscriberReleased = false
         let subscription = CustomSubscription()
@@ -253,12 +253,12 @@ final class SubscribeOnTests: XCTestCase {
             publisher.cancel()
             tracking.cancel()
         }
-        XCTAssertTrue(subscriberReleased)
+        XCTAssertFalse(subscriberReleased)
         scheduler.executeScheduledActions()
-        XCTAssertEqual(subscription.history, [])
+        XCTAssertEqual(subscription.history, [.requested(.max(1)), .cancelled])
     }
 
-    func testWeakCaptureWhenSchedulingCancel() throws {
+    func testStrongCaptureWhenSchedulingCancel() throws {
         let scheduler = VirtualTimeScheduler()
         var subscriberReleased = false
         let subscription = CustomSubscription()
@@ -279,9 +279,9 @@ final class SubscribeOnTests: XCTestCase {
             publisher.cancel()
             tracking.cancel()
         }
-        XCTAssertTrue(subscriberReleased)
+        XCTAssertFalse(subscriberReleased)
         scheduler.executeScheduledActions()
-        XCTAssertEqual(subscription.history, [])
+        XCTAssertEqual(subscription.history, [.cancelled])
     }
 
     func testSubscribeOnReceiveSubscriptionTwice() throws {
@@ -311,7 +311,7 @@ final class SubscribeOnTests: XCTestCase {
     }
 
     func testSubscribeOnCancelBeforeSubscription() {
-        testCancelBeforeSubscription(inputType: Int.self, shouldCrash: false) {
+        testCancelBeforeSubscription(inputType: Int.self, expected: .history([])) {
             $0.subscribe(on: ImmediateScheduler.shared)
         }
     }
@@ -326,7 +326,8 @@ final class SubscribeOnTests: XCTestCase {
     }
 
     func testSubscribeOnLifecycle() throws {
-        try testLifecycle(sendValue: 31, cancellingSubscriptionReleasesSubscriber: true) {
+        try testLifecycle(sendValue: 31,
+                          cancellingSubscriptionReleasesSubscriber: false) {
             $0.subscribe(on: ImmediateScheduler.shared)
         }
     }

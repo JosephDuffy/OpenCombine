@@ -5,6 +5,8 @@
 //  Created by Sergej Jaskiewicz on 10.12.2019.
 //
 
+#if !WASI
+
 import Foundation
 import XCTest
 
@@ -623,3 +625,13 @@ extension TestNotificationCenter.Event: CustomStringConvertible {
         }
     }
 }
+
+#if !canImport(Darwin) && swift(<5.1)
+extension Notification.Name {
+    init(_ rawValue: String) {
+        self.init(rawValue: rawValue)
+    }
+}
+#endif // !canImport(Darwin) && swift(<5.1)
+
+#endif // !WASI

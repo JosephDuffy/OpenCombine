@@ -736,6 +736,34 @@ final class SwitchToLatestTests: XCTestCase {
         XCTAssertEqual(nestedSubscription.history, [.requested(.max(1))])
     }
 
+    @available(macOS 11.0, iOS 14.0, *)
+    func testOverloadWhenUpstreamNeverFailsButChildrenCanFail() {
+        let helper = OperatorTestHelper(
+            publisherType: CustomPublisherBase<CustomPublisher, Never>.self,
+            initialDemand: .max(1),
+            receiveValueDemand: .max(100),
+            createSut: { $0.switchToLatest() }
+        )
+
+        XCTAssertEqual(helper.sut.upstream.upstream, helper.publisher)
+    }
+
+    @available(macOS 11.0, iOS 14.0, *)
+    func testOverloadWhenUpstreamCanFailButChildrenNeverFail() {
+        let helper = OperatorTestHelper(
+            publisherType: CustomPublisherBase<CustomPublisherBase<Int, Never>,
+                                               TestingError>.self,
+            initialDemand: .max(1),
+            receiveValueDemand: .max(100),
+            createSut: { $0.switchToLatest() }
+        )
+
+        XCTAssertEqual(helper.sut.upstream.upstream, helper.publisher)
+
+        let child = CustomPublisherBase<Int, Never>(subscription: nil)
+        XCTAssertEqual(helper.sut.upstream.transform(child).upstream, child)
+    }
+
     func testSwitchToLatestLifecycle() throws {
         try testLifecycle(sendValue: CustomPublisher(subscription: CustomSubscription()),
                           cancellingSubscriptionReleasesSubscriber: false,
@@ -764,38 +792,24 @@ final class SwitchToLatestTests: XCTestCase {
         XCTAssertEqual(downstreamSubscription.combineIdentifier, outerCombineID)
 
         func testReflections(_ subject: Any,
-                             hasChildren: Bool,
-                             file: StaticString = #file,
-                             line: UInt = #line) {
+                             hasChildren: Bool) {
             XCTAssertEqual((subject as? CustomStringConvertible)?.description,
-                           "SwitchToLatest",
-                           file: file,
-                           line: line)
-            XCTAssertFalse(subject is CustomDebugStringConvertible,
-                           file: file,
-                           line: line)
+                           "SwitchToLatest")
+            XCTAssertFalse(subject is CustomDebugStringConvertible)
             XCTAssertEqual(
                 (subject as? CustomPlaygroundDisplayConvertible)?
                     .playgroundDescription as? String,
-                "SwitchToLatest",
-                file: file,
-                line: line
+                "SwitchToLatest"
             )
             if let mirror = (subject as? CustomReflectable)?.customMirror {
                 if hasChildren {
                     XCTAssert(expectedChildren(
                                   ("parentSubscription",
-                                   .matches(String(describing: outerCombineID))),
-                                  file: file,
-                                  line: line
-                              )(mirror),
-                              file: file,
-                              line: line)
+                                   .matches(String(describing: outerCombineID)))
+                              )(mirror))
                 }
             } else {
-                XCTFail("subject should conform to CustomReflectable",
-                        file: file,
-                        line: line)
+                XCTFail("subject should conform to CustomReflectable")
             }
         }
 

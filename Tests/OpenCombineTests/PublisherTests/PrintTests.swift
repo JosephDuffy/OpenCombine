@@ -96,14 +96,14 @@ final class PrintTests: XCTestCase {
         let printer = publisher.print(to: stream)
 
         let counter = Atomic(0)
-        _ = printer.sink(receiveValue: { _ in counter.do { $0 += 1 } })
+        _ = printer.sink(receiveValue: { _ in counter += 1 })
 
         race(
             { _ = publisher.send(12) },
             { _ = publisher.send(34) }
         )
 
-        XCTAssertEqual(counter.value, 200)
+        XCTAssertEqual(counter, 200)
     }
 
     func testPrintReflection() throws {
@@ -138,7 +138,7 @@ final class PrintTests: XCTestCase {
 
     func testPrintCancelBeforeSubscription() {
         testCancelBeforeSubscription(inputType: Int.self,
-                                     shouldCrash: false,
+                                     expected: .history([]),
                                      { $0.print() })
     }
 
@@ -405,7 +405,6 @@ final class PrintTests: XCTestCase {
 }
 
 private final class HistoryStream: TextOutputStream {
-
     let output = Atomic([String]())
 
     func write(_ string: String) {
