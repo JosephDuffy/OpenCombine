@@ -135,6 +135,8 @@ extension AbstractCombineLatest: Subscription {
             return
         }
         self.demand += demand
+        // Fix data race when reading `subscriptions`. This might not be correct but it doesn't deadlock or trigger the thread sanitizer.
+        let subscriptions = self.subscriptions
         lock.unlock()
         for subscription in subscriptions {
             subscription?.request(demand)
